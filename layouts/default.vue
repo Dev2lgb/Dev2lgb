@@ -32,10 +32,12 @@
     >
     <v-app-bar-nav-icon @click.stop="drawer = !drawer" />
     <v-spacer />
-    <v-img
-    src="/img/logo.png"
-    max-width="140"
-    ></v-img>
+    <router-link to="/">
+      <v-img
+      src="/img/logo.png"
+      max-width="140"
+      ></v-img>
+    </router-link>
     <v-spacer />
     <v-menu
       transition="slide-y-transition"
@@ -93,6 +95,11 @@ export default {
           icon: 'mdi-account',
           title: '회원관리',
           to: '/basic'
+        },
+        {
+          icon: 'mdi-calendar-check',
+          title: '스케줄관리',
+          to: '/scheduler'
         },
       ],
       miniVariant: false,

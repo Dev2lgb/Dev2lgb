@@ -23,9 +23,13 @@
         <v-text-field
           append-icon="mdi-magnify"
           label="Search"
+          v-model="keyword"
+          @keyup.enter="searchItem" @click:append="searchItem"
           single-line
           hide-details
         ></v-text-field>
+        <v-spacer></v-spacer>
+        <v-spacer></v-spacer>
         <v-spacer></v-spacer>
         <v-dialog
           v-model="dialog"
@@ -52,7 +56,7 @@
                   <v-col
                     cols="12"
                     sm="6"
-                    md="4"
+                    md="12"
                   >
                     <v-text-field
                       v-model="editedItem.name"
@@ -62,7 +66,7 @@
                   <v-col
                     cols="12"
                     sm="6"
-                    md="4"
+                    md="12"
                   >
                     <v-text-field
                       v-model="editedItem.status"
@@ -72,7 +76,7 @@
                   <v-col
                     cols="12"
                     sm="6"
-                    md="4"
+                    md="12"
                   >
                     <v-text-field
                       v-model="editedItem.area"
@@ -82,22 +86,47 @@
                   <v-col
                     cols="12"
                     sm="6"
-                    md="4"
+                    md="12"
                   >
-                    <v-text-field
+                    <v-select
                       v-model="editedItem.gender"
+                      :items="genders"
                       label="성별"
-                    ></v-text-field>
+                      dense
+                    ></v-select>
                   </v-col>
                   <v-col
                     cols="12"
                     sm="6"
-                    md="4"
+                    md="12"
                   >
-                    <v-text-field
-                      v-model="editedItem.birth"
-                      label="생년월일"
-                    ></v-text-field>
+                    <v-menu
+                      ref="menu"
+                      v-model="menu"
+                      :close-on-content-click="false"
+                      transition="scale-transition"
+                      offset-y
+                      min-width="auto"
+                    >
+                        <template v-slot:activator="{ on, attrs }">
+                          <v-text-field
+                            v-model="editedItem.birth"
+                            label="생년월일"
+                            prepend-icon="mdi-calendar"
+                            readonly
+                            v-bind="attrs"
+                            v-on="on"
+                          ></v-text-field>
+                        </template>
+                        <v-date-picker
+                        v-model="editedItem.birth"
+                        :active-picker.sync="activePicker"
+                        locale="ko-KR"
+                        :max="(new Date(Date.now() - (new Date()).getTimezoneOffset() * 60000)).toISOString().substr(0, 10)"
+                        min="1950-01-01"
+                        @change="saveDate"
+                      ></v-date-picker>
+                    </v-menu>
                   </v-col>
                 </v-row>
               </v-container>
@@ -110,25 +139,25 @@
                 text
                 @click="close"
               >
-                Cancel
+                닫기
               </v-btn>
               <v-btn
                 color="blue darken-1"
                 text
                 @click="save"
               >
-                Save
+                저장
               </v-btn>
             </v-card-actions>
           </v-card>
         </v-dialog>
         <v-dialog v-model="dialogDelete" max-width="500px">
           <v-card>
-            <v-card-title class="text-h5">Are you sure you want to delete this item?</v-card-title>
+            <v-card-title class="text-h5">정말 삭제하시겠습니까?</v-card-title>
             <v-card-actions>
               <v-spacer></v-spacer>
-              <v-btn color="blue darken-1" text @click="closeDelete">Cancel</v-btn>
-              <v-btn color="blue darken-1" text @click="deleteItemConfirm">OK</v-btn>
+              <v-btn color="blue darken-1" text @click="closeDelete">취소</v-btn>
+              <v-btn color="blue darken-1" text @click="deleteItemConfirm">삭제</v-btn>
               <v-spacer></v-spacer>
             </v-card-actions>
           </v-card>
@@ -169,16 +198,23 @@ export default {
     ],
     items: [],
     loading: true,
+    genders : ['남자', '여자'],
     pagination: {},
     editedIndex: -1,
     editedItem: {},
+    deleteItemId: 0,
     defaultItem: {},
     totalItems: 0,
     errors: {},
+    keyword : '',
+    filename: '',
+    activePicker: null,
+    date: null,
+    menu: false,
   }),
   computed: {
     formTitle () {
-      return this.editedIndex === -1 ? 'New Item' : 'Edit Item'
+      return this.editedIndex === -1 ? '등록하기' : '수정하기'
     },
   },
 
@@ -190,16 +226,24 @@ export default {
       val || this.closeDelete()
     },
     pagination: {
-          handler() {
-              this.fetchData()
-          },
-          deep: true,
-      },
+        handler() {
+            this.fetchData()
+        },
+        deep: true,
+    },
+    menu (val) {
+      val && setTimeout(() => (this.activePicker = 'YEAR'))
+    },
   },
   methods: {
     async fetchData() {
       this.loading = true;
-      const items = await this.$axios.$get('api/basic?page=' + this.pagination.page + '&per_page=' + this.pagination.itemsPerPage)
+      let url = 'api/basic';
+      url += '?page=' + this.pagination.page;
+      url += '&per_page=' + this.pagination.itemsPerPage;
+      if (this.keyword) url += '&keyword=' + this.keyword;
+
+      const items = await this.$axios.$get(url)
       this.items = items.data
       this.pagination.page = items.current_page
       this.totalItems = items.total
@@ -213,21 +257,20 @@ export default {
     },
 
     deleteItem (item) {
-      this.errors = {};
-
-      this.$axios({
-          url: 'api/basic/delete', data: item.id,
-      }).then(response => {
-          this.close();
-          this.fetchData();
-      }).catch(error => {
-          console.log(error);
-      });
+      this.editedIndex = this.items.indexOf(item)
+      this.editedItem = Object.assign({}, item)
+      this.dialogDelete = true
     },
 
-    deleteItemConfirm () {
-      this.items.splice(this.editedIndex, 1)
-      this.closeDelete()
+    async deleteItemConfirm () {
+      try {
+        await this.$axios.delete('api/basic/' + this.editedItem.id)
+        this.items.splice(this.editedIndex, 1)
+        this.fetchData();
+        this.closeDelete()
+      } catch (error) {
+        console.log(error);
+      }
     },
 
     close () {
@@ -235,9 +278,6 @@ export default {
       this.errors = {};
       setTimeout(() => {
           this.editedItem = Object.assign({}, this.defaultItem);
-          /* TODO OPEN PHOTO
-          this.$refs.photo.init(0, null);
-          this.$refs.business_card.init(0, null);*/
           this.editedIndex = -1;
       }, 300)
     },
@@ -250,20 +290,53 @@ export default {
       })
     },
 
-    save () {
+    async save () {
       this.errors = {};
       let method = 'post';
+      let url = 'api/basic';
       if (this.editedIndex > -1) {
-          method = 'put';
+        url += '/' + this.editedItem.id;
+        method = 'put';
       }
-      this.$axios({
-          url: 'api/basic', method: method, data: this.editedItem,
-      }).then(response => {
-          this.close();
-          this.fetchData();
-      }).catch(error => {
-          console.log(error);
-      });
+
+      if (!this.editedItem.name) {
+        this.$toast.error('이름을 입력해주세요.');
+        return;
+      } else if (!this.editedItem.status) {
+        this.$toast.error('상태를 입력해주세요.');
+        return;
+      } else if (!this.editedItem.area) {
+        this.$toast.error('지역을 입력해주세요.');
+        return;
+      } else if (!this.editedItem.gender) {
+        this.$toast.error('성별을 선택해주세요.');
+        return;
+      } else if (!this.editedItem.birth) {
+        this.$toast.error('생년월일을 입력해주세요.');
+        return;
+      }
+
+      const config = {
+          headers: {
+              'content-type': 'multipart/form-data'
+          }
+      }
+      try {
+        await this.$axios({
+          url: url, method: method, data:this.editedItem, config
+        })
+        this.close();
+        this.fetchData();
+      } catch (error) {
+        this.$toast.error('오류가 발생했습니다.');
+        console.log(error);
+      }
+    },
+    saveDate (date) {
+      this.$refs.menu.save(date)
+    },
+    searchItem() {
+        this.fetchData()
     },
   },
 }
