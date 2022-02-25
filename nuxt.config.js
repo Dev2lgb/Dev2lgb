@@ -61,7 +61,7 @@ export default {
     credentials: true, // default value of withCredentials is fale
 
     // This is where to hit the server
-    baseUrl: 'http://localhost:8000'
+    baseUrl: 'http://localhost:8000/api'
   },
 
   auth: {

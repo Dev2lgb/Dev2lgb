@@ -105,6 +105,9 @@ export default {
       miniVariant: false,
     }
   },
+  mounted() {
+    console.log(this.$auth);
+  },
   methods: {
     async logout () {
       await this.$auth.logout()

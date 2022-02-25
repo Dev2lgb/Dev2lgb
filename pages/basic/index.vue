@@ -61,6 +61,7 @@
                     <v-text-field
                       v-model="editedItem.name"
                       label="이름"
+                      :error-messages="errors.name"
                     ></v-text-field>
                   </v-col>
                   <v-col
@@ -238,7 +239,7 @@ export default {
   methods: {
     async fetchData() {
       this.loading = true;
-      let url = 'api/basic';
+      let url = 'basic';
       url += '?page=' + this.pagination.page;
       url += '&per_page=' + this.pagination.itemsPerPage;
       if (this.keyword) url += '&keyword=' + this.keyword;
@@ -264,7 +265,7 @@ export default {
 
     async deleteItemConfirm () {
       try {
-        await this.$axios.delete('api/basic/' + this.editedItem.id)
+        await this.$axios.delete('basic/' + this.editedItem.id)
         this.items.splice(this.editedIndex, 1)
         this.fetchData();
         this.closeDelete()
@@ -293,7 +294,7 @@ export default {
     async save () {
       this.errors = {};
       let method = 'post';
-      let url = 'api/basic';
+      let url = 'basic';
       if (this.editedIndex > -1) {
         url += '/' + this.editedItem.id;
         method = 'put';
@@ -302,16 +303,20 @@ export default {
       if (!this.editedItem.name) {
         this.$toast.error('이름을 입력해주세요.');
         return;
-      } else if (!this.editedItem.status) {
+      }
+      if (!this.editedItem.status) {
         this.$toast.error('상태를 입력해주세요.');
         return;
-      } else if (!this.editedItem.area) {
+      }
+      if (!this.editedItem.area) {
         this.$toast.error('지역을 입력해주세요.');
         return;
-      } else if (!this.editedItem.gender) {
+      }
+      if (!this.editedItem.gender) {
         this.$toast.error('성별을 선택해주세요.');
         return;
-      } else if (!this.editedItem.birth) {
+      }
+      if (!this.editedItem.birth) {
         this.$toast.error('생년월일을 입력해주세요.');
         return;
       }
@@ -328,6 +333,7 @@ export default {
         this.close();
         this.fetchData();
       } catch (error) {
+        this.errors.name =
         this.$toast.error('오류가 발생했습니다.');
         console.log(error);
       }

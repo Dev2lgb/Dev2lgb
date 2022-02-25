@@ -84,7 +84,7 @@
           :type="type"
           @click:event="showEvent"
           @click:more="viewDay"
-          @click:date="setDialogDate()"
+          @click:date="setDialogDate"
           @change="updateRange"
         ></v-calendar>
         <v-menu
@@ -107,11 +107,11 @@
               </v-btn>
               <v-toolbar-title v-html="selectedEvent.name"></v-toolbar-title>
               <v-spacer></v-spacer>
-              <v-btn icon>
-                <v-icon>mdi-heart</v-icon>
-              </v-btn>
-              <v-btn icon>
-                <v-icon>mdi-dots-vertical</v-icon>
+              <v-btn
+
+                icon
+              >
+                <v-icon>mdi-delete</v-icon>
               </v-btn>
             </v-toolbar>
             <v-card-text>
@@ -134,6 +134,7 @@
           <v-container>
             <v-form @submit.prevent="addEvent">
               <v-text-field v-model="editedItem.title" type="text" label="event name (required)"></v-text-field>
+              <v-text-field v-model="editedItem.details" type="text" label="detail"></v-text-field>
               <v-text-field v-model="editedItem.sdate" type="date" label="시작일자"></v-text-field>
               <v-text-field v-model="editedItem.stime" type="time" label="시작시간"></v-text-field>
               <v-text-field v-model="editedItem.edate" type="date" label="종료일자"></v-text-field>
@@ -170,9 +171,8 @@ export default {
       loading: true,
       events: [],
       editedItem: {},
-      colors: ['blue', 'indigo', 'deep-purple', 'cyan', 'green', 'orange', 'grey darken-1'],
-      names: ['Meeting', 'Holiday', 'PTO', 'Travel', 'Event', 'Birthday', 'Conference', 'Party'],
       errors: {},
+      editDate : '',
     }),
     mounted () {
       this.$refs.calendar.checkChange()
@@ -211,27 +211,7 @@ export default {
         nativeEvent.stopPropagation()
       },
       async updateRange ({ start, end }) {
-        const min = new Date(`${start.date}T00:00:00`)
-        const max = new Date(`${end.date}T23:59:59`)
-        const events = []
-        this.loading = true;
-
-        let url = 'api/schedule';
-        const eventData = await this.$axios.$get(url)
-
-        for (let i = 0; i < eventData.length; i++) {
-          events.push({
-            name: eventData[i].title,
-            start: eventData[i].sdate + ' ' + eventData[i].stime,
-            end: eventData[i].edate + ' ' + eventData[i].etime,
-            color: eventData[i].color,
-            timed: eventData[i].allDay,
-          })
-        }
-
-        this.events = events
-
-        this.loading = false;
+        this.fetchData();
 
         // const days = (max.getTime() - min.getTime()) / 86400000
         // const eventCount = this.rnd(days, days + 20)
@@ -253,21 +233,43 @@ export default {
 
         // }
       },
-      setDialogDate() {
+
+      async fetchData () {
+        const events = []
+        this.loading = true;
+
+        let url = 'schedule';
+        const eventData = await this.$axios.$get(url)
+
+        for (let i = 0; i < eventData.length; i++) {
+          events.push({
+            name: eventData[i].title,
+            start: eventData[i].sdate + ' ' + eventData[i].stime,
+            end: eventData[i].edate + ' ' + eventData[i].etime,
+            color: eventData[i].color,
+            details: eventData[i].details,
+            timed: eventData[i].allDay,
+          })
+        }
+        this.events = events
+        this.loading = false;
+      },
+      setDialogDate(date) {
         this.dialogDate = true
+        this.editedItem = Object.assign({})
+        this.editedItem.sdate = date.date
       },
       async addEvent () {
         this.errors = {};
         let method = 'post';
-        let url = 'api/schedule';
+        let url = 'schedule';
 
         try {
           await this.$axios({
             url: url, method: method, data:this.editedItem
           })
           this.close();
-          this.$refs.calendar.checkChange()
-          // this.fetchData();
+          this.fetchData();
         } catch (error) {
           this.$toast.error('오류가 발생했습니다.');
           console.log(error);
@@ -275,11 +277,11 @@ export default {
       },
       close () {
         this.dialogDate = false;
-        this.errors = {};
-        setTimeout(() => {
-            this.editedItem = Object.assign({}, this.defaultItem);
-            this.editedIndex = -1;
-        }, 300)
+      },
+      deleteItem (item) {
+        this.editedIndex = this.items.indexOf(item)
+        this.editedItem = Object.assign({}, item)
+        this.dialogDelete = true
       },
     },
   }

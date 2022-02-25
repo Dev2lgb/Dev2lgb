@@ -89,7 +89,7 @@ export default {
     async register () {
       if(this.$refs.form.validate()) {
         try {
-          await this.$axios.$post('/api/register', this.form)
+          await this.$axios.$post('register', this.form)
           await this.$auth.loginWith('laravelSanctum', {
             data: {
               email: this.form.email,
